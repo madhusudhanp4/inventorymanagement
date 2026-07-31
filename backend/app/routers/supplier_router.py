@@ -18,6 +18,20 @@ def create_supplier(
     request: SupplierCreate,
     db: Session = Depends(get_db)
 ):
+    existing = (
+        db.query(Supplier)
+        .filter(
+            Supplier.supplier_code ==
+            request.supplier_code
+        )
+        .first()
+    )
+
+    if existing:
+        return {
+            "message": "Supplier already exists"
+        }
+        
     supplier = Supplier(
         name=request.name,
         supplier_code=request.supplier_code,

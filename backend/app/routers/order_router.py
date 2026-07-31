@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from app.core.tracing import span
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -28,53 +30,60 @@ def create_order(
     request: PurchaseOrderCreate,
     db: Session = Depends(get_db)
 ):
-    po = PurchaseOrder(
-        po_number=generate_po_number(db),
-        supplier_id=request.supplier_id,
-        order_date=datetime.strptime(
-            request.order_date,
-            "%Y-%m-%d"
-        ).date(),
-        status="draft"
-    )
+    with span("http.request"):
 
-    db.add(po)
-    db.commit()
-    db.refresh(po)
-
-    total_amount = 0
-
-    for item in request.items:
-
-        total_amount += (
-            item.quantity_ordered *
-            item.unit_cost
+        po = PurchaseOrder(
+            po_number=generate_po_number(db),
+            supplier_id=request.supplier_id,
+            order_date=datetime.strptime(
+                request.order_date,
+                "%Y-%m-%d"
+            ).date(),
+            status="draft"
         )
 
-        po_item = POItem(
-            po_id=po.id,
-            product_id=item.product_id,
-            quantity_ordered=item.quantity_ordered,
-            unit_cost=item.unit_cost
-        )
+        db.add(po)
+        db.commit()
+        db.refresh(po)
 
-        db.add(po_item)
+        total_amount = 0
 
-    po.total_amount = total_amount
+        for item in request.items:
 
-    db.commit()
-    db.refresh(po)
+            total_amount += (
+                item.quantity_ordered *
+                item.unit_cost
+            )
 
-    return po
+            po_item = POItem(
+                po_id=po.id,
+                product_id=item.product_id,
+                quantity_ordered=item.quantity_ordered,
+                unit_cost=item.unit_cost
+            )
+
+            db.add(po_item)
+
+        po.total_amount = total_amount
+
+        db.commit()
+        db.refresh(po)
+
+        return po
+
+        
 
 
 @router.get("/")
 def get_orders(
     db: Session = Depends(get_db)
 ):
-    return db.query(
-        PurchaseOrder
-    ).all()
+    with span("db.query"):
+
+        return db.query(
+            PurchaseOrder
+        ).all()
+
 
 
 @router.get("/{order_id}")
@@ -82,13 +91,16 @@ def get_order(
     order_id: int,
     db: Session = Depends(get_db)
 ):
-    return (
-        db.query(PurchaseOrder)
-        .filter(
-            PurchaseOrder.id == order_id
+    with span("db.query"):
+
+        return (
+            db.query(PurchaseOrder)
+            .filter(
+                PurchaseOrder.id == order_id
+            )
+            .first()
         )
-        .first()
-    )
+
 
 
 @router.patch("/{order_id}/receive")
@@ -96,16 +108,18 @@ def receive_order(
     order_id: int,
     db: Session = Depends(get_db)
 ):
-    po = receive_purchase_order(
-        order_id,
-        db
-    )
+    with span("http.request"):
 
-    if not po:
+        po = receive_purchase_order(
+            order_id,
+            db
+        )
+
+        if not po:
+            return {
+                "message": "Order not found"
+            }
+
         return {
-            "message": "Order not found"
+            "message": "Purchase Order Received"
         }
-
-    return {
-        "message": "Purchase Order Received"
-    }

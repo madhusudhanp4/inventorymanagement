@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from sqlalchemy.orm import Session
 
+from app.core.tracing import span
+
 from app.database.database import SessionLocal
 from app.models.models import User
 from app.schemas.auth_schema import (
@@ -22,61 +24,65 @@ router = APIRouter(
 def register(
     request: RegisterRequest
 ):
-    db: Session = SessionLocal()
+    with span("auth.validate"):
 
-    existing_user = (
-        db.query(User)
-        .filter(User.email == request.email)
-        .first()
-    )
+        db: Session = SessionLocal()
 
-    if existing_user:
+        existing_user = (
+            db.query(User)
+            .filter(User.email == request.email)
+            .first()
+        )
+
+        if existing_user:
+            return {
+                "message": "User already exists"
+            }
+
+        user = User(
+            email=request.email,
+            hashed_password=hash_password(
+                request.password
+            ),
+            full_name=request.full_name
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
         return {
-            "message": "User already exists"
+            "message": "User Registered Successfully"
         }
-
-    user = User(
-        email=request.email,
-        hashed_password=hash_password(
-            request.password
-        ),
-        full_name=request.full_name
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    return {
-        "message": "User Registered Successfully"
-    }
 
 
 @router.post("/login")
 def login(
     request: LoginRequest
 ):
-    db: Session = SessionLocal()
+    with span("auth.validate"):
 
-    user = (
-        db.query(User)
-        .filter(User.email == request.email)
-        .first()
-    )
+        db: Session = SessionLocal()
 
-    if not user:
+        user = (
+            db.query(User)
+            .filter(User.email == request.email)
+            .first()
+        )
+
+        if not user:
+            return {
+                "message": "Invalid Credentials"
+            }
+
+        if not verify_password(
+            request.password,
+            user.hashed_password
+        ):
+            return {
+                "message": "Invalid Credentials"
+            }
+
         return {
-            "message": "Invalid Credentials"
+            "message": "Login Successful"
         }
-
-    if not verify_password(
-        request.password,
-        user.hashed_password
-    ):
-        return {
-            "message": "Invalid Credentials"
-        }
-
-    return {
-        "message": "Login Successful"
-    }
