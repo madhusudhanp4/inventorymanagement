@@ -9,6 +9,15 @@ from app.models.models import (
     POStatus
 )
 
+import time
+
+from app.logging.logging_config import get_logger
+from app.core.tracing import span
+
+logger = get_logger()
+
+
+
 router = APIRouter(
     prefix="/api/v1",
     tags=["Dashboard"]
@@ -19,88 +28,133 @@ router = APIRouter(
 def get_low_stock_alerts(
     db: Session = Depends(get_db)
 ):
-    results = []
+    with span("db.query"):
 
-    products = db.query(Product).all()
+        db_start = time.time()
 
-    for product in products:
+        results = []
 
-        stock = (
-            db.query(StockLevel)
-            .filter(
-                StockLevel.product_id == product.id
+        products = db.query(Product).all()
+
+        for product in products:
+
+            stock = (
+                db.query(StockLevel)
+                .filter(
+                    StockLevel.product_id == product.id
+                )
+                .first()
             )
-            .first()
+
+            if not stock:
+                continue
+
+            if stock.quantity_available <= product.reorder_point:
+
+                results.append({
+                    "id": product.id,
+                    "sku": product.sku,
+                    "name": product.name,
+                    "quantity_available":
+                        stock.quantity_available,
+                    "reorder_point":
+                        product.reorder_point
+                })
+
+        logger.info(
+            "database_query",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="low_stock_alerts",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "products,stock_levels"
+            }
         )
 
-        if not stock:
-            continue
+        return results
 
-        if stock.quantity_available <= product.reorder_point:
 
-            results.append({
-                "id": product.id,
-                "sku": product.sku,
-                "name": product.name,
-                "quantity_available":
-                    stock.quantity_available,
-                "reorder_point":
-                    product.reorder_point
-            })
-
-    return results
 
 
 @router.get("/dashboard")
 def dashboard(
     db: Session = Depends(get_db)
 ):
-    products = db.query(Product).all()
+    with span("db.query"):
 
-    total_products = len(products)
+        db_start = time.time()
 
-    low_stock_count = 0
-    out_of_stock_count = 0
-    total_stock_value = 0
+        products = db.query(Product).all()
 
-    for product in products:
+        total_products = len(products)
 
-        stock = (
-            db.query(StockLevel)
-            .filter(
-                StockLevel.product_id ==
-                product.id
+        low_stock_count = 0
+        out_of_stock_count = 0
+        total_stock_value = 0
+
+        for product in products:
+
+            stock = (
+                db.query(StockLevel)
+                .filter(
+                    StockLevel.product_id ==
+                    product.id
+                )
+                .first()
             )
-            .first()
+
+            if not stock:
+                continue
+
+            if stock.quantity_available == 0:
+                out_of_stock_count += 1
+
+            if stock.quantity_available <= product.reorder_point:
+                low_stock_count += 1
+
+            total_stock_value += (
+                stock.quantity_on_hand *
+                product.cost_price
+            )
+
+        open_po_count = (
+            db.query(PurchaseOrder)
+            .filter(
+                PurchaseOrder.status !=
+                POStatus.received
+            )
+            .count()
         )
 
-        if not stock:
-            continue
-
-        if stock.quantity_available == 0:
-            out_of_stock_count += 1
-
-        if stock.quantity_available <= product.reorder_point:
-            low_stock_count += 1
-
-        total_stock_value += (
-            stock.quantity_on_hand *
-            product.cost_price
+        logger.info(
+            "database_query",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="dashboard_metrics",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "products,stock_levels,purchase_orders"
+            }
         )
 
-    open_po_count = (
-        db.query(PurchaseOrder)
-        .filter(
-            PurchaseOrder.status !=
-            POStatus.received
-        )
-        .count()
-    )
+        return {
+            "total_products": total_products,
+            "low_stock_count": low_stock_count,
+            "out_of_stock_count": out_of_stock_count,
+            "open_po_count": open_po_count,
+            "total_stock_value": total_stock_value
+        }
 
-    return {
-        "total_products": total_products,
-        "low_stock_count": low_stock_count,
-        "out_of_stock_count": out_of_stock_count,
-        "open_po_count": open_po_count,
-        "total_stock_value": total_stock_value
-    }
