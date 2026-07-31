@@ -14,6 +14,12 @@ from app.auth.security import (
     verify_password
 )
 
+import time
+
+from app.logging.logging_config import get_logger
+
+logger = get_logger()
+
 router = APIRouter(
     prefix="/api/v1/auth",
     tags=["Authentication"]
@@ -24,6 +30,8 @@ router = APIRouter(
 def register(
     request: RegisterRequest
 ):
+    start_time = time.time()
+
     with span("auth.validate"):
 
         db: Session = SessionLocal()
@@ -35,6 +43,22 @@ def register(
         )
 
         if existing_user:
+
+            logger.warning(
+                "register_failed",
+                poc_id="POC-07",
+                phase=1,
+                associate_id="Panuganti Madhusudan",
+                operation="register",
+                duration_ms=int((time.time() - start_time) * 1000),
+                status="failure",
+                error="user_already_exists",
+                request_id="auth",
+                extra={
+                    "email": request.email
+                }
+            )
+
             return {
                 "message": "User already exists"
             }
@@ -51,15 +75,33 @@ def register(
         db.commit()
         db.refresh(user)
 
+        logger.info(
+            "register_success",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="register",
+            duration_ms=int((time.time() - start_time) * 1000),
+            status="success",
+            error=None,
+            request_id="auth",
+            extra={
+                "email": request.email
+            }
+        )
+
         return {
             "message": "User Registered Successfully"
         }
+
 
 
 @router.post("/login")
 def login(
     request: LoginRequest
 ):
+    start_time = time.time()
+
     with span("auth.validate"):
 
         db: Session = SessionLocal()
@@ -71,6 +113,22 @@ def login(
         )
 
         if not user:
+
+            logger.warning(
+                "login_failed",
+                poc_id="POC-07",
+                phase=1,
+                associate_id="Panuganti Madhusudan",
+                operation="login",
+                duration_ms=int((time.time() - start_time) * 1000),
+                status="failure",
+                error="user_not_found",
+                request_id="auth",
+                extra={
+                    "email": request.email
+                }
+            )
+
             return {
                 "message": "Invalid Credentials"
             }
@@ -79,9 +137,55 @@ def login(
             request.password,
             user.hashed_password
         ):
+
+            logger.warning(
+                "token_validation_failed",
+                poc_id="POC-07",
+                phase=1,
+                associate_id="Panuganti Madhusudan",
+                operation="auth.validate",
+                duration_ms=int((time.time() - start_time) * 1000),
+                status="failure",
+                error="invalid_password",
+                request_id="auth",
+                extra={
+                    "email": request.email
+                }
+            )
+
             return {
                 "message": "Invalid Credentials"
             }
+
+        logger.info(
+            "login_success",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="login",
+            duration_ms=int((time.time() - start_time) * 1000),
+            status="success",
+            error=None,
+            request_id="auth",
+            extra={
+                "email": request.email
+            }
+        )
+
+        logger.info(
+            "token_validation_success",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="auth.validate",
+            duration_ms=int((time.time() - start_time) * 1000),
+            status="success",
+            error=None,
+            request_id="auth",
+            extra={
+                "email": request.email
+            }
+        )
 
         return {
             "message": "Login Successful"

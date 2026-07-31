@@ -29,6 +29,12 @@ from app.services.inventory_service import (
     check_stock_alerts
 )
 
+import time
+
+from app.logging.logging_config import get_logger
+
+logger = get_logger()
+
 
 
 router = APIRouter(
@@ -72,8 +78,29 @@ def create_product(
             supplier_id=request.supplier_id
         )
 
+        db_start = time.time()
+
         db.add(product)
         db.commit()
+
+        logger.info(
+            "database_insert",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="product_insert",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "products",
+                "sku": sku
+            }
+        )
+
         db.refresh(product)
 
         stock = StockLevel(
@@ -82,8 +109,28 @@ def create_product(
             quantity_reserved=0
         )
 
+        db_start = time.time()
+
         db.add(stock)
         db.commit()
+
+        logger.info(
+            "database_insert",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="stocklevel_insert",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "stock_levels",
+                "product_id": product.id
+            }
+        )
 
         return {
             "id": product.id,
@@ -111,8 +158,28 @@ def get_products(
                 Product.category == category
             )
 
-        return query.all()
+        db_start = time.time()
 
+        result = query.all()
+
+        logger.info(
+            "database_query",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="product_select",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "products"
+            }
+        )
+
+        return result
 
 
 @router.get("/{product_id}")
@@ -160,6 +227,7 @@ def get_product(
             }
         }
         
+
 
 @router.patch("/{product_id}/stock")
 def update_stock(
@@ -211,7 +279,27 @@ def update_stock(
             db
         )
 
+        db_start = time.time()
+
         db.commit()
+
+        logger.info(
+            "database_update",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="stock_update",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "stock_levels",
+                "product_id": product_id
+            }
+        )
 
         return {
             "message": "Stock Updated Successfully",

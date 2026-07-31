@@ -10,6 +10,14 @@ from app.routers.dashboard_router import router as dashboard_router
 
 from app.logging.logging_config import get_logger
 
+from app.core.middleware import RequestLoggingMiddleware
+
+from app.core.exception_handler import (
+    global_exception_handler
+)
+
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 logger = get_logger()
 
 # Create Database Tables
@@ -19,6 +27,17 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Inventory Management System"
 )
+
+app.add_middleware(
+    RequestLoggingMiddleware
+)
+
+app.add_exception_handler(
+    Exception,
+    global_exception_handler
+)
+
+FastAPIInstrumentor.instrument_app(app)
 
 # Register Routers
 app.include_router(auth_router)

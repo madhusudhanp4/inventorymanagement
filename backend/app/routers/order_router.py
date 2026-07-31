@@ -19,6 +19,13 @@ from app.services.inventory_service import (
     receive_purchase_order
 )
 
+import time
+
+from app.logging.logging_config import get_logger
+
+logger = get_logger()
+
+
 router = APIRouter(
     prefix="/api/v1/orders",
     tags=["Orders"]
@@ -42,8 +49,28 @@ def create_order(
             status="draft"
         )
 
+        db_start = time.time()
+
         db.add(po)
         db.commit()
+
+        logger.info(
+            "database_insert",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="purchase_order_insert",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "purchase_orders"
+            }
+        )
+
         db.refresh(po)
 
         total_amount = 0
@@ -66,12 +93,33 @@ def create_order(
 
         po.total_amount = total_amount
 
+        db_start = time.time()
+
         db.commit()
+
+        logger.info(
+            "database_insert",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="purchase_order_item_insert",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "po_items",
+                "po_id": po.id
+            }
+        )
+
         db.refresh(po)
 
         return po
 
-        
+
 
 
 @router.get("/")
@@ -80,10 +128,30 @@ def get_orders(
 ):
     with span("db.query"):
 
-        return db.query(
+        db_start = time.time()
+
+        result = db.query(
             PurchaseOrder
         ).all()
 
+        logger.info(
+            "database_query",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="purchase_order_select",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "purchase_orders"
+            }
+        )
+
+        return result
 
 
 @router.get("/{order_id}")
@@ -93,13 +161,35 @@ def get_order(
 ):
     with span("db.query"):
 
-        return (
+        db_start = time.time()
+
+        result = (
             db.query(PurchaseOrder)
             .filter(
                 PurchaseOrder.id == order_id
             )
             .first()
         )
+
+        logger.info(
+            "database_query",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="purchase_order_select_by_id",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success",
+            error=None,
+            request_id="db",
+            extra={
+                "table": "purchase_orders",
+                "order_id": order_id
+            }
+        )
+
+        return result
 
 
 
@@ -110,9 +200,29 @@ def receive_order(
 ):
     with span("http.request"):
 
+        db_start = time.time()
+
         po = receive_purchase_order(
             order_id,
             db
+        )
+
+        logger.info(
+            "database_update",
+            poc_id="POC-07",
+            phase=1,
+            associate_id="Panuganti Madhusudan",
+            operation="purchase_order_receive",
+            duration_ms=int(
+                (time.time() - db_start) * 1000
+            ),
+            status="success" if po else "failure",
+            error=None if po else "order_not_found",
+            request_id="db",
+            extra={
+                "table": "purchase_orders",
+                "order_id": order_id
+            }
         )
 
         if not po:

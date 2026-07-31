@@ -10,7 +10,10 @@ def get_logger():
         processors=[
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer(),
+            structlog.processors.JSONRenderer(
+                indent=4,
+                sort_keys=False
+            ),
         ]
     )
 

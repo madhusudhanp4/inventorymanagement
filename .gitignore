@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 inventory.db
 reports/
+.coverage
+__pycache__/
+.pytest_cache/
