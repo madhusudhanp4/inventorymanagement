@@ -6,3 +6,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 structlog
+
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
