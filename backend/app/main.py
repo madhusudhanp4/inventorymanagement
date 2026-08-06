@@ -1,4 +1,7 @@
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
 
 from app.database.database import Base, engine
 
@@ -11,22 +14,19 @@ from app.routers.dashboard_router import router as dashboard_router
 from app.logging.logging_config import get_logger
 
 from app.core.middleware import RequestLoggingMiddleware
-
-from app.core.exception_handler import (
-    global_exception_handler
-)
-
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from app.core.exception_handler import global_exception_handler
 
 logger = get_logger()
 
-# Create Database Tables
 Base.metadata.create_all(bind=engine)
 
-# Create FastAPI App
 app = FastAPI(
     title="Inventory Management System"
 )
+
+trace.set_tracer_provider(TracerProvider())
+
+FastAPIInstrumentor.instrument_app(app)
 
 app.add_middleware(
     RequestLoggingMiddleware
@@ -37,9 +37,6 @@ app.add_exception_handler(
     global_exception_handler
 )
 
-FastAPIInstrumentor.instrument_app(app)
-
-# Register Routers
 app.include_router(auth_router)
 app.include_router(supplier_router)
 app.include_router(product_router)

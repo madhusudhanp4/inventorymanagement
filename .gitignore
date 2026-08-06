@@ -4,5 +4,4 @@ __pycache__/
 inventory.db
 reports/
 .coverage
-__pycache__/
-.pytest_cache/
+coverage.xml
