@@ -5,3 +5,5 @@ inventory.db
 reports/
 .coverage
 coverage.xml
+.env
+backend/.env
