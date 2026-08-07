@@ -10,3 +10,10 @@ structlog
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
+
+langchain
+langchain-google-genai
+langchain-community
+chromadb
+langsmith
+streamlit

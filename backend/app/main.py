@@ -16,6 +16,8 @@ from app.logging.logging_config import get_logger
 from app.core.middleware import RequestLoggingMiddleware
 from app.core.exception_handler import global_exception_handler
 
+from app.api.rag import router as rag_router
+
 logger = get_logger()
 
 Base.metadata.create_all(bind=engine)
@@ -42,6 +44,12 @@ app.include_router(supplier_router)
 app.include_router(product_router)
 app.include_router(order_router)
 app.include_router(dashboard_router)
+
+app.include_router(
+    rag_router,
+    prefix="/api/rag",
+    tags=["RAG"]
+)
 
 
 @app.on_event("startup")

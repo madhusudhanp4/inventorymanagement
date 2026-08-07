@@ -1,0 +1,9 @@
+Inventory Policy
+
+All inventory items must be tracked accurately.
+
+Stock levels should be monitored regularly.
+
+Purchase orders must be approved before procurement.
+
+Low-stock alerts should trigger replenishment activities.
